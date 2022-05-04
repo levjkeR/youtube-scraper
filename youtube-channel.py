@@ -1,9 +1,10 @@
+import sys
+
 import requests
 import json
 import time
 
 from typing import Generator
-from typing_extensions import Literal
 
 X_YOUTUBE_CLIENT_NAME = '1'
 
@@ -30,13 +31,10 @@ INNERTUBE_CLIENT = {
 
 
 # Получить все видео с канала
-def get_channel(channel_id: str = None, channel_url: str = None, limit: int = None,
+def get_channel(channel_url: str = None, limit: int = None,
                 sleep: int = 1, sort_by: str = "newest"):
     sort_by_dict = {"newest": "dd", "oldest": "da", "popular": "p"}
-    url = "{url}/videos?view=0&sort={sort_by}&flow=grid".format(
-        url=channel_url or f"https://www.youtube.com/channel/{channel_id}",
-        sort_by=sort_by_dict[sort_by],
-    )
+    url = "{url}/videos?view=0&sort={sort_by}&flow=grid".format(url=channel_url, sort_by=sort_by_dict[sort_by])
     videos = get_videos(url, "gridVideoRenderer", limit, sleep)
     for video in videos:
         yield video
@@ -72,7 +70,7 @@ def get_videos(url: str, param: str, limit: int, sleep: int):
             break
 
         time.sleep(sleep)
-
+    print("[+] Total videos: ", count)
     session.close()
 
 
@@ -84,9 +82,8 @@ def parse_part_of_data(data: str, key: str, stop_key: str, skip: str = 0):
 
 def get_html_data(session: requests.Session, url: str):
     response = session.get(url)
-    if response.status_code == 200:
-        html = response.text
-        return html
+    html = response.text
+    return html
 
 
 def get_data(session: requests.Session, api_key: str, next_data: dict, client_data: dict):
@@ -130,6 +127,18 @@ def get_videos_items(data: dict, selector: str) -> Generator[dict, None, None]:
 
 
 if __name__ == '__main__':
-    v = get_channel(channel_url='https://www.youtube.com/c/TheCyberMentor')
-    for i in v:
-        print(i['videoId'])
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-url', help="YouTube channel link", required=True, type=str)
+    parser.add_argument('--limit', help="Max count of videos", type=int)
+    parser.add_argument('--sleep', help="Сooldown between data requests", default=1, type=int)
+    parser.add_argument('--sort', help="Sorting method", default='newest', type=str)
+    args = parser.parse_args()
+
+
+    videos_meta = get_channel(args.url, args.limit, args.sleep, args.sort)
+    # videos_meta = get_channel(channel_url='https://www.youtube.com/c/ikakProsto')
+
+    for vid in videos_meta:
+        print(vid['videoId'])
